@@ -92,7 +92,7 @@ func certInfo(certificate x509.Certificate) CertInfo {
 	diff := time.Until(certificate.NotAfter)
 
 	return CertInfo{
-		CommonName:      certificate.Issuer.CommonName,
+		CommonName:      certificate.Subject.CommonName,
 		DaysUntilExpiry: int(diff.Hours() / 24),
 		DNSNames:        certificate.DNSNames,
 		Issuer:          certificate.Issuer.CommonName,
