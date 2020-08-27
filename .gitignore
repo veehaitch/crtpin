@@ -1,6 +1,9 @@
 # Nix: GOPATH
 /go
 
+# Nix: nix-build
+/result
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
