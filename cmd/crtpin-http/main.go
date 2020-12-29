@@ -31,9 +31,10 @@ func serve(listenHost string, listenPort int) {
 
 func usage(w http.ResponseWriter, r *http.Request) {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("usage: https://%s/<host>[?port=<port>]\n", r.Host))
+	b.WriteString(fmt.Sprintf("Usage: https://%s/<host>[?port=<port>]\n", r.Host))
 	b.WriteString(fmt.Sprintf("       https://%s/vincent-haupert.de\n", r.Host))
 	b.WriteString(fmt.Sprintf("       https://%s/imap.gmail.com?port=993\n", r.Host))
+	b.WriteString("\n\nPrivacy policy: https://vincent-haupert.de/#privacy_policy")
 
 	http.Error(w, b.String(), http.StatusOK)
 }
