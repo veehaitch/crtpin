@@ -1,9 +1,8 @@
-{
-  pkgs ? import <nixpkgs> {},
-  lib ? pkgs.lib,
-  buildGoModule ? pkgs.buildGoModule
+{ pkgs ? import <nixpkgs> { }
+, lib ? pkgs.lib
+, buildGoModule ? pkgs.buildGoModule
 }:
-let 
+let
   base = name: buildGoModule rec {
     pname = name;
     version = "0.0.1";
@@ -23,7 +22,8 @@ let
       platforms = platforms.all;
     };
   };
-in {
+in
+{
   http = base "crtpin-http";
   cli = base "crtpin-cli";
 }

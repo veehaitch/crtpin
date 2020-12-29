@@ -1,8 +1,8 @@
-with import <nixpkgs> {};
+with import <nixpkgs> { };
 
 mkShell {
   name = "crtpin-shell";
-  buildInputs = [ 
+  buildInputs = [
     go
     golint
   ];
