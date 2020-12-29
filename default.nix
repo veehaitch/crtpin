@@ -3,26 +3,27 @@
   lib ? pkgs.lib,
   buildGoModule ? pkgs.buildGoModule
 }:
+let 
+  base = name: buildGoModule rec {
+    pname = name;
+    version = "0.0.1";
 
-buildGoModule rec {
-  pname = "crtpin";
-  version = "0.0.1";
+    src = lib.cleanSource ./.;
+    vendorSha256 = "1qzkrrik2hv8z1z55xig9wkdi2hz6nsd2ch582jnjdwj83lrjf8z";
 
-  src = lib.cleanSource ./.;
-  vendorSha256 = "16bmlirhy7a3hgga75xbk63mcar891ivgj58pbh6cj2nmqszvzpr";
+    doCheck = false;
 
-  doCheck = false;
+    subPackages = [ "cmd/${name}" ];
 
-  subPackages = [
-    "cmd/crtpin-cli"
-    "cmd/crtpin-http"
-  ];
-
-  meta = with lib; {
-    description = "Crtpin is a tiny program to calculate public key hashes of hosts suitable for certificate pinning";
-    homepage = "https://github.com/veehaitch/crtpin";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ veehaitch ];
-    platforms = platforms.all;
+    meta = with lib; {
+      description = "Crtpin (${name}) is a tiny program to calculate public key hashes of hosts suitable for certificate pinning";
+      homepage = "https://github.com/veehaitch/crtpin";
+      license = licenses.asl20;
+      maintainers = with maintainers; [ veehaitch ];
+      platforms = platforms.all;
+    };
   };
+in {
+  http = base "crtpin-http";
+  cli = base "crtpin-cli";
 }

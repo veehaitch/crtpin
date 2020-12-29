@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-var filterPrivate = true
+var allowRebind *bool
 
 type jsonResponse struct {
 	Result *crtpin.Result `json:"result"`
@@ -31,9 +31,9 @@ func serve(listenHost string, listenPort int) {
 
 func usage(w http.ResponseWriter, r *http.Request) {
 	var b strings.Builder
-	b.WriteString( fmt.Sprintf("usage: https://%s/<host>[?port=<port>]\n", r.Host))
-	b.WriteString( fmt.Sprintf("       https://%s/vincent-haupert.de\n", r.Host))
-	b.WriteString( fmt.Sprintf("       https://%s/imap.gmail.com?port=993\n", r.Host))
+	b.WriteString(fmt.Sprintf("usage: https://%s/<host>[?port=<port>]\n", r.Host))
+	b.WriteString(fmt.Sprintf("       https://%s/vincent-haupert.de\n", r.Host))
+	b.WriteString(fmt.Sprintf("       https://%s/imap.gmail.com?port=993\n", r.Host))
 
 	http.Error(w, b.String(), http.StatusOK)
 }
@@ -49,7 +49,7 @@ func handle(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	res, err := crtpin.Crtpin(host, port, filterPrivate)
+	res, err := crtpin.Crtpin(host, port, *allowRebind)
 	jsonRes := jsonResponse{
 		Result: res,
 		Error:  &err,
@@ -63,8 +63,14 @@ func handle(w http.ResponseWriter, r *http.Request) {
 func main() {
 	var listenHost = flag.String("host", "::1", "Listening host")
 	var listenPort = flag.Int("port", 8888, "Listening port")
-	filterPrivate = *flag.Bool("filter-private", true, "Whether to filter requests which resolve to private IPv4/IPv6 ranges")
+	allowRebind = flag.Bool("allow-rebind", false, "Also connect to a host which resolves to a private IPv4/IPv6 address")
 	flag.Parse()
+
+	fmt.Printf("Listening at %s:%d\n", *listenHost, *listenPort)
+	fmt.Printf("DNS rebind allowed: %t\n", *allowRebind)
+	if len(flag.Args()) > 0 {
+		fmt.Println("Unknown command line arguments: ", flag.Args())
+	}
 
 	serve(*listenHost, *listenPort)
 }

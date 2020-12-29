@@ -17,7 +17,6 @@ import (
 	_ "golang.org/x/crypto/blake2s"
 	"math/big"
 	"net"
-	"strconv"
 	"time"
 )
 
@@ -104,6 +103,7 @@ func certInfo(certificate x509.Certificate) CertInfo {
 	}
 }
 
+// Cf. https://github.com/artyom/dot
 func newDoTResolver(serverName string, addrs ...string) *net.Resolver {
 	var d net.Dialer
 	cfg := &tls.Config{
@@ -126,128 +126,21 @@ func newDoTResolver(serverName string, addrs ...string) *net.Resolver {
 
 var resolverServerName = "dns3.digitalcourage.de"
 var resolver = newDoTResolver(resolverServerName, "5.9.164.112:853")
-
 var dialer = &net.Dialer{
 	Resolver: resolver,
 	Timeout:  600 * time.Millisecond,
 }
 
-var privateIP4Networks = []net.IPNet{
-	{
-		IP:   net.ParseIP("0.0.0.0"),
-		Mask: net.CIDRMask(8, 32),
-	},
-	{
-		IP:   net.ParseIP("10.0.0.0"),
-		Mask: net.CIDRMask(8, 32),
-	},
-	{
-		IP:   net.ParseIP("127.0.0.0"),
-		Mask: net.CIDRMask(8, 32),
-	},
-	{
-		IP:   net.ParseIP("169.254.0.0"),
-		Mask: net.CIDRMask(16, 32),
-	},
-	{
-		IP:   net.ParseIP("172.16.0.0"),
-		Mask: net.CIDRMask(12, 32),
-	},
-	{
-		IP:   net.ParseIP("192.0.0.0"),
-		Mask: net.CIDRMask(29, 32),
-	},
-	{
-		IP:   net.ParseIP("192.0.0.170"),
-		Mask: net.CIDRMask(31, 32),
-	},
-	{
-		IP:   net.ParseIP("192.0.2.0"),
-		Mask: net.CIDRMask(24, 32),
-	},
-	{
-		IP:   net.ParseIP("192.168.0.0"),
-		Mask: net.CIDRMask(16, 32),
-	},
-	{
-		IP:   net.ParseIP("198.18.0.0"),
-		Mask: net.CIDRMask(15, 32),
-	},
-	{
-		IP:   net.ParseIP("198.51.100.0"),
-		Mask: net.CIDRMask(24, 32),
-	},
-	{
-		IP:   net.ParseIP("203.0.113.0"),
-		Mask: net.CIDRMask(24, 32),
-	},
-	{
-		IP:   net.ParseIP("240.0.0.0"),
-		Mask: net.CIDRMask(4, 32),
-	},
-	{
-		IP:   net.ParseIP("255.255.255.255"),
-		Mask: net.CIDRMask(32, 32),
-	},
-}
-
-var privateIP6Networks = []net.IPNet{
-	{
-		IP:   net.ParseIP("::1"),
-		Mask: net.CIDRMask(128, 128),
-	},
-	{
-		IP:   net.ParseIP("::"),
-		Mask: net.CIDRMask(128, 128),
-	},
-	{
-		IP:   net.ParseIP("::ffff:0:0"),
-		Mask: net.CIDRMask(96, 128),
-	},
-	{
-		IP:   net.ParseIP("100::"),
-		Mask: net.CIDRMask(64, 128),
-	},
-	{
-		IP:   net.ParseIP("2001::"),
-		Mask: net.CIDRMask(23, 128),
-	},
-	{
-		IP:   net.ParseIP("2001:2::"),
-		Mask: net.CIDRMask(48, 128),
-	},
-	{
-		IP:   net.ParseIP("2001:db8::"),
-		Mask: net.CIDRMask(32, 128),
-	},
-	{
-		IP:   net.ParseIP("2001:10::"),
-		Mask: net.CIDRMask(28, 128),
-	},
-	{
-		IP:   net.ParseIP("fc00::"),
-		Mask: net.CIDRMask(7, 128),
-	},
-	{
-		IP:   net.ParseIP("fe80::"),
-		Mask: net.CIDRMask(10, 128),
-	},
-}
-
-func ipPrivate(ip net.IP) bool {
-	var networks *[]net.IPNet
-	if ip.To4() != nil {
-		networks = &privateIP4Networks
-	} else {
-		networks = &privateIP6Networks
+// isPrivate reports whether ip is a private address, according to
+// RFC 1918 (IPv4 addresses) and RFC 4193 (IPv6 addresses).
+// Cf. https://github.com/golang/go/pull/42793
+func isPrivate(ip net.IP) bool {
+	if ip4 := ip.To4(); ip4 != nil {
+		return ip4[0] == 10 ||
+			(ip4[0] == 172 && ip4[1]&0xf0 == 16) ||
+			(ip4[0] == 192 && ip4[1] == 168)
 	}
-
-	for _, ipNet := range *networks {
-		if ipNet.Contains(ip) {
-			return true
-		}
-	}
-	return false
+	return len(ip) == net.IPv6len && ip[0]&0xfe == 0xfc
 }
 
 // PreferIP6 implements sort.Interface for []net.IPAddr preferring IPv6
@@ -257,17 +150,25 @@ func (a PreferIP6) Len() int           { return len(a) }
 func (a PreferIP6) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a PreferIP6) Less(i, _ int) bool { return a[i].IP.To4() == nil }
 
-func lookUpIPs(host string) ([]net.IPAddr, error) {
+// lookUpIPs looks up the IP addresses for a host, filters out any IPs which belong to a private ip range,
+// and returns the result, preferring IP6 over IP4.
+func lookUpIPs(host string, allowRebind bool) ([]net.IPAddr, error) {
 	ipAddrs, err := resolver.LookupIPAddr(context.Background(), host)
 	if err != nil {
 		return ipAddrs, err
 	}
 
+	// Filter out all private IPs
 	var filteredIps []net.IPAddr
-	for i := range ipAddrs {
-		ipAddr := ipAddrs[i]
-		if !ipPrivate(ipAddr.IP) {
-			filteredIps = append(filteredIps, ipAddr)
+
+	if allowRebind {
+		filteredIps = ipAddrs
+	} else {
+		for i := range ipAddrs {
+			ipAddr := ipAddrs[i]
+			if !isPrivate(ipAddr.IP) {
+				filteredIps = append(filteredIps, ipAddr)
+			}
 		}
 	}
 
@@ -278,7 +179,6 @@ func lookUpIPs(host string) ([]net.IPAddr, error) {
 }
 
 func dialWithDialerPreferTCP6(dialer *net.Dialer, addr string, config *tls.Config) (*tls.Conn, error) {
-
 	conn, err := tls.DialWithDialer(dialer, "tcp6", addr, config)
 	if err != nil {
 		return tls.DialWithDialer(dialer, "tcp4", addr, config)
@@ -287,32 +187,26 @@ func dialWithDialerPreferTCP6(dialer *net.Dialer, addr string, config *tls.Confi
 }
 
 // Crtpin creates pins and meta information about a certificate used for host and port
-func Crtpin(host string, port int, filterPrivateIPs bool) (*Result, error) {
+func Crtpin(host string, port int, allowRebind bool) (*Result, error) {
 	now := time.Now()
 
 	var conn *tls.Conn
 	var err error
 
-	if filterPrivateIPs {
-		ipAddrs, err := lookUpIPs(host)
-		if len(ipAddrs) == 0 {
-			return nil, &net.DNSError{Err: errors.New("no such host").Error(), Name: host, IsNotFound: true}
-		}
-		// Take the first successfully opened Conn
-		for i := range ipAddrs {
-			addr := fmt.Sprintf("[%s]:%d", ipAddrs[i].IP, port)
-			conn, err = tls.DialWithDialer(dialer, "tcp", addr, &tls.Config{
-				ServerName:         host,
-				InsecureSkipVerify: true,
-			})
-			if err == nil {
-				break
-			}
-		}
-	} else {
-		conn, err = dialWithDialerPreferTCP6(dialer, host+":"+strconv.Itoa(port), &tls.Config{
+	ipAddrs, err := lookUpIPs(host, allowRebind)
+	if len(ipAddrs) == 0 {
+		return nil, &net.DNSError{Err: errors.New("no such host").Error(), Name: host, IsNotFound: true}
+	}
+	// Take the first successfully opened Conn
+	for i := range ipAddrs {
+		addr := fmt.Sprintf("[%s]:%d", ipAddrs[i].IP, port)
+		conn, err = tls.DialWithDialer(dialer, "tcp", addr, &tls.Config{
+			ServerName:         host,
 			InsecureSkipVerify: true,
 		})
+		if err == nil {
+			break
+		}
 	}
 
 	if conn == nil {

@@ -8,8 +8,8 @@ let
   group = name;
   host = toString cfg.host;
   port = toString cfg.port;
-  filterPrivate = if cfg.filterPrivate then "true" else "false";
-  crtpin = callPackage ./default.nix { };
+  allowRebind = if cfg.allowRebind then "true" else "false";
+  crtpin = (callPackage ./default.nix { }).http;
 in
 {
   options.services."${name}" = with types; {
@@ -24,7 +24,7 @@ in
       default = 8000;
       description = "Listening port.";
     };
-    filterPrivate = mkOption {
+    allowRebind = mkOption {
       type = bool;
       default = true;
       description = "Whether to filter requests which resolve to private IPv4/IPv6 ranges.";
@@ -44,7 +44,7 @@ in
         ExecStart = ''${crtpin}/bin/crtpin-http \
           -host="${host}" \
           -port=${port} \
-          -filter-private=${filterPrivate}
+          -allow-rebind=${allowRebind}
         '';
 
         Restart = "on-failure";
