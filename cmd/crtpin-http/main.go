@@ -35,7 +35,7 @@ func usage(w http.ResponseWriter, r *http.Request) {
 	b.WriteString( fmt.Sprintf("       https://%s/vincent-haupert.de\n", r.Host))
 	b.WriteString( fmt.Sprintf("       https://%s/imap.gmail.com?port=993\n", r.Host))
 
-	http.Error(w, b.String(), http.StatusBadRequest)
+	http.Error(w, b.String(), http.StatusOK)
 }
 
 func handle(w http.ResponseWriter, r *http.Request) {

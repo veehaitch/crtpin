@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"math/rand"
 	"sort"
 
 	// Registers hash crypto.BLAKE2b_256
@@ -42,10 +43,11 @@ type Pins struct {
 
 // A Request provides meta information about the query
 type Request struct {
-	Date time.Time `json:"date"`
-	Host string    `json:"host"`
-	IP   string    `json:"ip"`
-	Port int       `json:"port"`
+	Date       time.Time `json:"date"`
+	Host       string    `json:"host"`
+	IP         string    `json:"ip"`
+	Port       int       `json:"port"`
+	NameServer string    `json:"nameserver"`
 }
 
 // The Result is the final outcome
@@ -102,18 +104,31 @@ func certInfo(certificate x509.Certificate) CertInfo {
 	}
 }
 
-var resolver = net.Resolver{
-	PreferGo: true,
-	Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-		d := net.Dialer{
-			Timeout: time.Millisecond * time.Duration(10000),
-		}
-		return d.DialContext(ctx, "udp", "8.8.8.8:53")
-	},
+func newDoTResolver(serverName string, addrs ...string) *net.Resolver {
+	var d net.Dialer
+	cfg := &tls.Config{
+		ServerName:         serverName,
+		ClientSessionCache: tls.NewLRUClientSessionCache(0),
+	}
+	return &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			conn, err := d.DialContext(ctx, "tcp", addrs[rand.Intn(len(addrs))])
+			if err != nil {
+				return nil, err
+			}
+			_ = conn.(*net.TCPConn).SetKeepAlive(true)
+			_ = conn.(*net.TCPConn).SetKeepAlivePeriod(3 * time.Minute)
+			return tls.Client(conn, cfg), nil
+		},
+	}
 }
 
+var resolverServerName = "dns3.digitalcourage.de"
+var resolver = newDoTResolver(resolverServerName, "5.9.164.112:853")
+
 var dialer = &net.Dialer{
-	Resolver: &resolver,
+	Resolver: resolver,
 	Timeout:  600 * time.Millisecond,
 }
 
@@ -322,10 +337,11 @@ func Crtpin(host string, port int, filterPrivateIPs bool) (*Result, error) {
 		Pins: pins,
 		Cert: cert,
 		Request: Request{
-			Date: now,
-			Host: host,
-			IP:   ip,
-			Port: port,
+			Date:       now,
+			Host:       host,
+			IP:         ip,
+			Port:       port,
+			NameServer: resolverServerName + ":853",
 		},
 	}, nil
 }

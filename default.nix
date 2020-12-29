@@ -5,11 +5,11 @@
 }:
 
 buildGoModule rec {
-  pname = "crtpin-cli";
+  pname = "crtpin";
   version = "0.0.1";
 
   src = lib.cleanSource ./.;
-  vendorSha256 = "1qzkrrik2hv8z1z55xig9wkdi2hz6nsd2ch582jnjdwj83lrjf8z";
+  vendorSha256 = "16bmlirhy7a3hgga75xbk63mcar891ivgj58pbh6cj2nmqszvzpr";
 
   doCheck = false;
 
