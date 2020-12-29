@@ -11,14 +11,14 @@ import (
 func main() {
 	var host = flag.String("host", "", "Host for which to fetch the certificate")
 	var port = flag.Int("port", 443, "Host port of the TLS server")
-	var filterPrivate = flag.Bool("filter-private", false, "Whether to filter requests which resolve to private IPv4/IPv6 ranges")
+	var allowRebind = flag.Bool("allow-rebind", false, "Also connect to a host which resolves to a private IPv4/IPv6 address")
 	flag.Parse()
 
 	if *host == "" {
 		log.Fatal("host parameter not given")
 	}
 
-	res, err := crtpin.Crtpin(*host, *port, *filterPrivate)
+	res, err := crtpin.Crtpin(*host, *port, *allowRebind)
 	if err != nil {
 		panic(err)
 	}

@@ -125,7 +125,9 @@ func newDoTResolver(serverName string, addrs ...string) *net.Resolver {
 }
 
 var resolverServerName = "dns3.digitalcourage.de"
-var resolver = newDoTResolver(resolverServerName, "5.9.164.112:853")
+var resolverAddr = "5.9.164.112"
+var resolverPort = 853
+var resolver = newDoTResolver(resolverServerName, fmt.Sprintf("[%s]:%d", resolverAddr, resolverPort))
 var dialer = &net.Dialer{
 	Resolver: resolver,
 	Timeout:  600 * time.Millisecond,
@@ -178,14 +180,6 @@ func lookUpIPs(host string, allowRebind bool) ([]net.IPAddr, error) {
 	return filteredIps, nil
 }
 
-func dialWithDialerPreferTCP6(dialer *net.Dialer, addr string, config *tls.Config) (*tls.Conn, error) {
-	conn, err := tls.DialWithDialer(dialer, "tcp6", addr, config)
-	if err != nil {
-		return tls.DialWithDialer(dialer, "tcp4", addr, config)
-	}
-	return conn, err
-}
-
 // Crtpin creates pins and meta information about a certificate used for host and port
 func Crtpin(host string, port int, allowRebind bool) (*Result, error) {
 	now := time.Now()
@@ -235,7 +229,7 @@ func Crtpin(host string, port int, allowRebind bool) (*Result, error) {
 			Host:       host,
 			IP:         ip,
 			Port:       port,
-			NameServer: resolverServerName + ":853",
+			NameServer: fmt.Sprintf("%s@%d#%s", resolverAddr, resolverPort, resolverServerName),
 		},
 	}, nil
 }
