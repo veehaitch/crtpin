@@ -1,58 +1,77 @@
 { config, pkgs, lib, ... }:
-with pkgs;
-with lib;
 let
   name = "crtpin";
   cfg = config.services.crtpin;
-  user = name;
-  group = name;
   host = toString cfg.host;
   port = toString cfg.port;
   allowRebind = if cfg.allowRebind then "true" else "false";
-  crtpin = (callPackage ./default.nix { }).http;
+  crtpin = (pkgs.callPackage ./default.nix { }).http;
 in
 {
-  options.services."${name}" = with types; {
+  options.services."${name}" = with lib; {
     enable = mkEnableOption "${name} service";
     host = mkOption {
-      type = str;
+      type = types.str;
       default = "::1";
       description = "Listening address.";
     };
     port = mkOption {
-      type = ints.positive;
+      type = types.ints.positive;
       default = 8000;
       description = "Listening port.";
     };
     allowRebind = mkOption {
-      type = bool;
+      type = types.bool;
       default = true;
       description = "Whether to filter requests which resolve to private IPv4/IPv6 ranges.";
     };
   };
 
-  config = mkIf cfg.enable {
-    systemd.services."${name}-service" = {
-      description = "${name} - process";
+  config = lib.mkIf cfg.enable {
+    systemd.services."${name}" = {
+      description = "${name} - certificate pinning service";
       wantedBy = [ "multi-user.target" ];
       after = [ "network.target" ];
 
       serviceConfig = {
-        User = user;
-        Group = group;
-        WorkingDirectory = "${crtpin}";
         ExecStart = ''${crtpin}/bin/crtpin-http \
-          -host="${host}" \
-          -port=${port} \
-          -allow-rebind=${allowRebind}
+            -host="${host}" \
+            -port=${port} \
+            -allow-rebind=${allowRebind}
         '';
-
         Restart = "on-failure";
 
+        # Accounting
+        CPUAccounting = true;
         IPAccounting = true;
+        MemoryAccounting = true;
 
         # Security
-        IPAddressDeny = lib.concatStringsSep " " [
+        CapabilityBoundingSet = "";
+        DynamicUser = true;
+        LockPersonality = true;
+        MemoryDenyWriteExecute = true;
+        NoNewPrivileges = true;
+        PrivateDevices = true;
+        PrivateMounts = true;
+        PrivateTmp = true;
+        PrivateUsers = true;
+        ProtectClock = true;
+        ProtectControlGroups = true;
+        ProtectHome = true;
+        ProtectHostname = true;
+        ProtectKernelLogs = true;
+        ProtectKernelModules = true;
+        ProtectKernelTunables = true;
+        ProtectSystem = "strict";
+        RestrictNamespaces = true;
+        RestrictRealtime = true;
+        SystemCallArchitectures = "native";
+        SystemCallErrorNumber = "EPERM";
+        UMask = "0077";
+
+        # Needs network access
+        IPAddressDeny = [
           # deny private ipv4
           "10.0.0.0/8"
           "172.16.0.0/12"
@@ -63,35 +82,10 @@ in
           # deny multicast for ipv4/ipv6
           "multicast"
         ];
-
-        LockPersonality = true;
-        MemoryDenyWriteExecute = true;
-        NoNewPrivileges = true;
-        PrivateDevices = true;
-        PrivateTmp = true;
-        ProtectControlGroups = true;
-        ProtectHome = true;
-        ProtectHostname = true;
-        ProtectKernelModules = true;
-        ProtectKernelTunables = true;
-        ProtectSystem = "strict";
+        SystemCallFilter = [ "@network-io" ];
         RestrictAddressFamilies = [ "AF_INET" "AF_INET6" ];
-        RestrictNamespaces = true;
-        RestrictRealtime = true;
-        SystemCallFilter = lib.concatStringsSep " " [
-          "@system-service"
-          "~@mount"
-        ];
-        SystemCallErrorNumber = "EPERM";
+        PrivateNetwork = false;
       };
-    };
-
-    users.users.${user} = {
-      group = group;
-      isSystemUser = true;
-    };
-    users.groups = {
-      "${group}" = { };
     };
   };
 }
