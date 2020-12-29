@@ -10,7 +10,7 @@ mkShell {
   shellHook = ''
     export GO111MODULE="auto"
 
-    export GOPATH=$(realpath ${toString ./.}/go)
+    export GOPATH=$(realpath ${toString ./.}/.go)
     mkdir -p $GOPATH/{bin,src}
 
     export GOBIN=$GOPATH/bin
