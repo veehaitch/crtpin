@@ -22,7 +22,7 @@ in
     };
     allowRebind = mkOption {
       type = types.bool;
-      default = true;
+      default = false;
       description = "Whether to filter requests which resolve to private IPv4/IPv6 ranges.";
     };
   };
@@ -71,7 +71,7 @@ in
         UMask = "0077";
 
         # Needs network access
-        IPAddressDeny = [
+        IPAddressDeny = lib.optionals (cfg.allowRebind == false) [
           # deny private ipv4
           "10.0.0.0/8"
           "172.16.0.0/12"
