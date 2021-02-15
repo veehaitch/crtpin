@@ -133,6 +133,9 @@ var dialer = &net.Dialer{
 	Timeout:  600 * time.Millisecond,
 }
 
+var _, localhostV4, _ = net.ParseCIDR("127.0.0.0/8")
+var _, localhostV6, _ = net.ParseCIDR("::1/128")
+
 // isPrivate reports whether ip is a private address, according to
 // RFC 1918 (IPv4 addresses) and RFC 4193 (IPv6 addresses).
 // Cf. https://github.com/golang/go/pull/42793
@@ -140,9 +143,11 @@ func isPrivate(ip net.IP) bool {
 	if ip4 := ip.To4(); ip4 != nil {
 		return ip4[0] == 10 ||
 			(ip4[0] == 172 && ip4[1]&0xf0 == 16) ||
-			(ip4[0] == 192 && ip4[1] == 168)
+			(ip4[0] == 192 && ip4[1] == 168) ||
+			(localhostV4.Contains(ip))
+	} else {
+		return len(ip) == net.IPv6len && (ip[0]&0xfe == 0xfc || localhostV6.Contains(ip))
 	}
-	return len(ip) == net.IPv6len && ip[0]&0xfe == 0xfc
 }
 
 // PreferIP6 implements sort.Interface for []net.IPAddr preferring IPv6
