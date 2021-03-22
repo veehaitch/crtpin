@@ -82,7 +82,10 @@ in
           # deny multicast for ipv4/ipv6
           "multicast"
         ];
-        SystemCallFilter = [ "@network-io" ];
+        SystemCallFilter = [
+          "@system-service"
+          "~@aio" "~@chown" "~@keyring" "~@memlock" "~@resources" "~@setuid" "~@timer"
+        ];
         RestrictAddressFamilies = [ "AF_INET" "AF_INET6" ];
         PrivateNetwork = false;
       };
