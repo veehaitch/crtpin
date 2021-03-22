@@ -83,7 +83,13 @@ in
         ];
         SystemCallFilter = [
           "@system-service"
-          "~@aio" "~@chown" "~@keyring" "~@memlock" "~@resources" "~@setuid" "~@timer"
+          "~@aio"
+          "~@chown"
+          "~@keyring"
+          "~@memlock"
+          "~@resources"
+          "~@setuid"
+          "~@timer"
         ];
         RestrictAddressFamilies = [ "AF_INET" "AF_INET6" ];
         PrivateNetwork = false;
