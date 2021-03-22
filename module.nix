@@ -5,7 +5,6 @@ let
   host = toString cfg.host;
   port = toString cfg.port;
   allowRebind = if cfg.allowRebind then "true" else "false";
-  crtpin = (pkgs.callPackage ./default.nix { }).http;
 in
 {
   options.services."${name}" = with lib; {
@@ -34,7 +33,7 @@ in
       after = [ "network.target" ];
 
       serviceConfig = {
-        ExecStart = ''${crtpin}/bin/crtpin-http \
+        ExecStart = ''${pkgs.crtpin-http}/bin/crtpin-http \
             -host="${host}" \
             -port=${port} \
             -allow-rebind=${allowRebind}
