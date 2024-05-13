@@ -3,12 +3,12 @@
 , buildGoModule ? pkgs.buildGoModule
 }:
 let
-  base = name: buildGoModule rec {
+  base = name: buildGoModule {
     pname = name;
     version = "0.0.1";
 
     src = lib.cleanSource ./.;
-    vendorSha256 = "1qzkrrik2hv8z1z55xig9wkdi2hz6nsd2ch582jnjdwj83lrjf8z";
+    vendorHash = "sha256-HzmZ6UCSN2mlQAUy0bQ1H4rYJk8v9lJ++GhDMWPO8+M=";
 
     doCheck = false;
 
