@@ -24,6 +24,7 @@ import (
 type CertInfo struct {
 	CommonName      string   `json:"commonName"`
 	DaysUntilExpiry int      `json:"daysUntilExpiry"`
+	Digest          string   `json:"digest"`
 	DNSNames        []string `json:"dnsNames"`
 	Issuer          string   `json:"issuer"`
 	NotValidAfter   string   `json:"notValidAfter"`
@@ -92,6 +93,11 @@ func calculatePins(certificate x509.Certificate) Pins {
 func certInfo(certificate x509.Certificate) CertInfo {
 	diff := time.Until(certificate.NotAfter)
 
+	h := crypto.SHA256.New()
+	h.Write(certificate.Raw)
+	digestSha256 := h.Sum(nil)
+	sri := fmt.Sprintf("sha256-%s", base64.StdEncoding.EncodeToString(digestSha256))
+
 	return CertInfo{
 		CommonName:      certificate.Subject.CommonName,
 		DaysUntilExpiry: int(diff.Hours() / 24),
@@ -100,6 +106,7 @@ func certInfo(certificate x509.Certificate) CertInfo {
 		NotValidAfter:   certificate.NotAfter.In(time.UTC).Format(time.RFC3339),
 		NotValidBefore:  certificate.NotBefore.In(time.UTC).Format(time.RFC3339),
 		SerialNumber:    *certificate.SerialNumber,
+		Digest:          sri,
 	}
 }
 
